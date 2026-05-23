@@ -18,7 +18,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-    print("Base de dados criada!")
+    print("Base de dados pronta!")
 
 def salvar(multiplicador):
     conn = sqlite3.connect(DB)
@@ -27,41 +27,59 @@ def salvar(multiplicador):
               (multiplicador, datetime.now().isoformat()))
     conn.commit()
     conn.close()
-    print(f"Guardado: {multiplicador}x")
+    total = c.execute("SELECT COUNT(*) FROM rodadas").fetchone()[0]
+    print(f"✅ Guardado: {multiplicador}x | Total: {total} rodadas")
 
 def on_message(ws, message):
     try:
+        print("📨 Mensagem:", message[:200])
         data = json.loads(message)
-        print("Mensagem:", data)
-        if "crashpoint" in str(data).lower():
-            mult = data.get("crashpoint") or data.get("multiplier") or data.get("value")
-            if mult:
-                salvar(float(mult))
+        mult = None
+        if isinstance(data, dict):
+            for key in ["crashpoint","multiplier","value","coef","coefficient","crash","result"]:
+                if key in data:
+                    mult = data[key]
+                    break
+        if mult:
+            salvar(float(mult))
     except Exception as e:
         print("Erro:", e)
 
 def on_error(ws, error):
-    print("Erro WebSocket:", error)
+    print("❌ Erro:", error)
 
-def on_close(ws, close_status_code, close_msg):
-    print("Ligação fechada. A reconectar em 5s...")
+def on_close(ws, a, b):
+    print("🔄 Reconectar em 5s...")
     time.sleep(5)
     iniciar()
 
 def on_open(ws):
-    print("Ligado ao Rocketman!")
+    print("🚀 Ligado!")
+    ws.send(json.dumps({"action":"subscribe","game":"rocketman"}))
+
+URLS = [
+    "wss://rocketman.elbet.com/socket.io/?transport=websocket",
+    "wss://rocketman-api.elbet.com/ws",
+    "wss://api.rocketman.elbet.com/ws",
+    "wss://games.elbet.com/rocketman/ws",
+]
 
 def iniciar():
     init_db()
-    print("A ligar ao Rocketman MegaGame...")
-    ws = websocket.WebSocketApp(
-        "wss://megagamelive.com/rocketman",
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close,
-        on_open=on_open
-    )
-    ws.run_forever()
+    for url in URLS:
+        try:
+            print(f"🔌 A tentar: {url}")
+            ws = websocket.WebSocketApp(
+                url,
+                on_message=on_message,
+                on_error=on_error,
+                on_close=on_close,
+                on_open=on_open
+            )
+            ws.run_forever()
+        except Exception as e:
+            print(f"❌ Falhou: {e}")
+            time.sleep(2)
 
 if __name__ == "__main__":
     iniciar()
