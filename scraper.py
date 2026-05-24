@@ -4,7 +4,7 @@ import sqlite3
 import time
 from datetime import datetime
 
-DB = "rocketman.db"
+DB = "aviator.db"
 
 def init_db():
     conn = sqlite3.connect(DB)
@@ -27,21 +27,22 @@ def salvar(multiplicador):
               (multiplicador, datetime.now().isoformat()))
     conn.commit()
     conn.close()
-    total = c.execute("SELECT COUNT(*) FROM rodadas").fetchone()[0]
+    conn2 = sqlite3.connect(DB)
+    total = conn2.execute("SELECT COUNT(*) FROM rodadas").fetchone()[0]
+    conn2.close()
     print(f"✅ Guardado: {multiplicador}x | Total: {total} rodadas")
 
 def on_message(ws, message):
     try:
-        print("📨 Mensagem:", message[:200])
+        print("📨", message[:150])
         data = json.loads(message)
-        mult = None
         if isinstance(data, dict):
-            for key in ["crashpoint","multiplier","value","coef","coefficient","crash","result"]:
+            for key in ["cashout","multiplier","value","coef","crash","result","coefficient","x"]:
                 if key in data:
                     mult = data[key]
-                    break
-        if mult:
-            salvar(float(mult))
+                    if mult and float(mult) > 1:
+                        salvar(float(mult))
+                        break
     except Exception as e:
         print("Erro:", e)
 
@@ -55,13 +56,12 @@ def on_close(ws, a, b):
 
 def on_open(ws):
     print("🚀 Ligado!")
-    ws.send(json.dumps({"action":"subscribe","game":"rocketman"}))
 
 URLS = [
-    "wss://rocketman.elbet.com/socket.io/?transport=websocket",
-    "wss://rocketman-api.elbet.com/ws",
-    "wss://api.rocketman.elbet.com/ws",
-    "wss://games.elbet.com/rocketman/ws",
+    "wss://aviator-odd.spribe.co/",
+    "wss://api.spribe.co/aviator/ws",
+    "wss://aviator.spribe.co/ws",
+    "wss://spribe.co/ws/aviator",
 ]
 
 def iniciar():
